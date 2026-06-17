@@ -1,0 +1,321 @@
+#!/usr/bin/env python3
+# ============================================================
+#   CipherVault - Basic Encryption & Decryption Tool
+#   Project 2 | DecodeLabs Cybersecurity Industrial Training
+#   Platform  : Kali Linux
+# ============================================================
+
+import os
+import sys
+import time
+
+
+# ─────────────────────────────────────────────
+#  TERMINAL COLOR CODES  (ANSI)
+# ─────────────────────────────────────────────
+class Color:
+    RESET   = "\033[0m"
+    BOLD    = "\033[1m"
+    RED     = "\033[91m"
+    GREEN   = "\033[92m"
+    YELLOW  = "\033[93m"
+    CYAN    = "\033[96m"
+    BLUE    = "\033[94m"
+    MAGENTA = "\033[95m"
+    WHITE   = "\033[97m"
+    DIM     = "\033[2m"
+
+
+# ─────────────────────────────────────────────
+#  UTILITY HELPERS
+# ─────────────────────────────────────────────
+def clear_screen():
+    os.system("clear")
+
+
+def slow_print(text: str, delay: float = 0.03):
+    """Print text character by character for a hacking effect."""
+    for ch in text:
+        sys.stdout.write(ch)
+        sys.stdout.flush()
+        time.sleep(delay)
+    print()
+
+
+def separator(char: str = "─", width: int = 60, color: str = Color.CYAN):
+    print(f"{color}{char * width}{Color.RESET}")
+
+
+def banner():
+    clear_screen()
+    separator("═", 60, Color.BLUE)
+    print(f"{Color.BOLD}{Color.CYAN}")
+    print("   ██████╗██╗██████╗ ██╗  ██╗███████╗██████╗ ")
+    print("  ██╔════╝██║██╔══██╗██║  ██║██╔════╝██╔══██╗")
+    print("  ██║     ██║██████╔╝███████║█████╗  ██████╔╝")
+    print("  ██║     ██║██╔═══╝ ██╔══██║██╔══╝  ██╔══██╗")
+    print("  ╚██████╗██║██║     ██║  ██║███████╗██║  ██║")
+    print("   ╚═════╝╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝")
+    print(f"{Color.YELLOW}              V A U L T{Color.RESET}")
+    print()
+    print(f"{Color.DIM}  Basic Encryption & Decryption Tool{Color.RESET}")
+    print(f"{Color.DIM}  DecodeLabs | Cybersecurity Project 2 | Kali Linux{Color.RESET}")
+    separator("═", 60, Color.BLUE)
+    print()
+
+
+# ─────────────────────────────────────────────
+#  CORE CRYPTOGRAPHIC ENGINE
+# ─────────────────────────────────────────────
+
+def shift_character(char: str, shift: int, direction: int) -> str:
+    """
+    Shift a single alphabetic character by `shift` positions.
+
+    direction : +1 for encryption, -1 for decryption
+    Non-alpha characters pass through untouched.
+
+    Formula  (encrypt): E(x) = (x + n) % 26
+    Formula  (decrypt): D(x) = (x - n) % 26
+    """
+    if char.isalpha():
+        base = ord('A') if char.isupper() else ord('a')
+        position    = ord(char) - base          # 0-based position in alphabet
+        new_position = (position + direction * shift) % 26
+        return chr(new_position + base)
+    return char                                 # spaces, digits, punctuation → unchanged
+
+
+def caesar_encrypt(plaintext: str, shift: int) -> str:
+    """Encrypt plaintext using Caesar cipher with the given shift key."""
+    return "".join(shift_character(ch, shift, +1) for ch in plaintext)
+
+
+def caesar_decrypt(ciphertext: str, shift: int) -> str:
+    """Decrypt ciphertext using Caesar cipher with the given shift key."""
+    return "".join(shift_character(ch, shift, -1) for ch in ciphertext)
+
+
+def brute_force_crack(ciphertext: str) -> list[tuple[int, str]]:
+    """Try all 25 possible shift values and return (shift, plaintext) pairs."""
+    results = []
+    for key in range(1, 26):
+        attempt = caesar_decrypt(ciphertext, key)
+        results.append((key, attempt))
+    return results
+
+
+# ─────────────────────────────────────────────
+#  INPUT VALIDATORS
+# ─────────────────────────────────────────────
+
+def get_shift_key(prompt: str = "  Enter shift key (1-25): ") -> int:
+    while True:
+        try:
+            value = int(input(f"{Color.YELLOW}{prompt}{Color.RESET}"))
+            if 1 <= value <= 25:
+                return value
+            print(f"  {Color.RED}[!] Key must be between 1 and 25.{Color.RESET}")
+        except ValueError:
+            print(f"  {Color.RED}[!] Please enter a valid integer.{Color.RESET}")
+
+
+def get_text_input(prompt: str) -> str:
+    while True:
+        text = input(f"{Color.YELLOW}{prompt}{Color.RESET}").strip()
+        if text:
+            return text
+        print(f"  {Color.RED}[!] Input cannot be empty.{Color.RESET}")
+
+
+# ─────────────────────────────────────────────
+#  DISPLAY HELPERS
+# ─────────────────────────────────────────────
+
+def show_result_box(label_a: str, value_a: str,
+                    label_b: str, value_b: str,
+                    key: int):
+    separator()
+    print(f"  {Color.DIM}Shift Key  :{Color.RESET} {Color.BOLD}{Color.MAGENTA}{key}{Color.RESET}")
+    print()
+    print(f"  {Color.CYAN}{label_a:<14}{Color.RESET}: {Color.WHITE}{value_a}{Color.RESET}")
+    print(f"  {Color.GREEN}{label_b:<14}{Color.RESET}: {Color.BOLD}{Color.GREEN}{value_b}{Color.RESET}")
+    separator()
+
+
+def show_ascii_table(text: str):
+    """Display character-by-character ASCII breakdown."""
+    separator("─", 60, Color.DIM)
+    print(f"  {Color.DIM}{'Char':<6} {'ASCII':<8} {'Binary':<12}{Color.RESET}")
+    separator("─", 60, Color.DIM)
+    for ch in text[:20]:            # limit to first 20 chars to keep output tidy
+        ascii_val = ord(ch)
+        binary    = format(ascii_val, '08b')
+        print(f"  {Color.CYAN}{ch!r:<6}{Color.RESET} {Color.YELLOW}{ascii_val:<8}{Color.RESET} {Color.DIM}{binary}{Color.RESET}")
+    if len(text) > 20:
+        print(f"  {Color.DIM}  ... (showing first 20 characters){Color.RESET}")
+    separator("─", 60, Color.DIM)
+
+
+# ─────────────────────────────────────────────
+#  MENU ACTIONS
+# ─────────────────────────────────────────────
+
+def menu_encrypt():
+    banner()
+    print(f"  {Color.BOLD}{Color.GREEN}[ ENCRYPT MODE ]{Color.RESET}")
+    print()
+    plaintext = get_text_input("  Enter plaintext  : ")
+    shift     = get_shift_key()
+    ciphertext = caesar_encrypt(plaintext, shift)
+
+    show_result_box("Plaintext", plaintext, "Ciphertext", ciphertext, shift)
+
+    choice = input(f"\n  {Color.DIM}Show ASCII breakdown? (y/n): {Color.RESET}").strip().lower()
+    if choice == 'y':
+        print(f"\n  {Color.CYAN}ASCII table for plaintext:{Color.RESET}")
+        show_ascii_table(plaintext)
+
+    input(f"\n  {Color.DIM}Press Enter to return to menu...{Color.RESET}")
+
+
+def menu_decrypt():
+    banner()
+    print(f"  {Color.BOLD}{Color.YELLOW}[ DECRYPT MODE ]{Color.RESET}")
+    print()
+    ciphertext = get_text_input("  Enter ciphertext : ")
+    shift      = get_shift_key()
+    plaintext  = caesar_decrypt(ciphertext, shift)
+
+    show_result_box("Ciphertext", ciphertext, "Plaintext", plaintext, shift)
+
+    input(f"\n  {Color.DIM}Press Enter to return to menu...{Color.RESET}")
+
+
+def menu_both():
+    banner()
+    print(f"  {Color.BOLD}{Color.MAGENTA}[ ENCRYPT → DECRYPT DEMO ]{Color.RESET}")
+    print()
+    plaintext  = get_text_input("  Enter plaintext  : ")
+    shift      = get_shift_key()
+
+    ciphertext  = caesar_encrypt(plaintext, shift)
+    recovered   = caesar_decrypt(ciphertext, shift)
+    is_lossless = (recovered == plaintext)
+
+    separator()
+    print(f"  {Color.DIM}Shift Key   :{Color.RESET} {Color.BOLD}{Color.MAGENTA}{shift}{Color.RESET}")
+    print()
+    print(f"  {Color.CYAN}{'Plaintext':<14}{Color.RESET}: {Color.WHITE}{plaintext}{Color.RESET}")
+    print(f"  {Color.YELLOW}{'Encrypted':<14}{Color.RESET}: {Color.YELLOW}{ciphertext}{Color.RESET}")
+    print(f"  {Color.GREEN}{'Decrypted':<14}{Color.RESET}: {Color.BOLD}{Color.GREEN}{recovered}{Color.RESET}")
+    print()
+    if is_lossless:
+        print(f"  {Color.GREEN}[✔] Lossless round-trip verified.{Color.RESET}")
+    else:
+        print(f"  {Color.RED}[✘] Mismatch detected!{Color.RESET}")
+    separator()
+
+    input(f"\n  {Color.DIM}Press Enter to return to menu...{Color.RESET}")
+
+
+def menu_brute_force():
+    banner()
+    print(f"  {Color.BOLD}{Color.RED}[ BRUTE FORCE ANALYSER ]{Color.RESET}")
+    print(f"  {Color.DIM}Tries all 25 shift values — shows Caesar cipher's weakness.{Color.RESET}")
+    print()
+    ciphertext = get_text_input("  Enter ciphertext : ")
+
+    results = brute_force_crack(ciphertext)
+
+    separator()
+    print(f"  {'Key':<6} {'Decrypted Text'}")
+    separator("─", 60, Color.DIM)
+    for key, text in results:
+        print(f"  {Color.MAGENTA}{key:<6}{Color.RESET} {Color.WHITE}{text}{Color.RESET}")
+    separator()
+    print(f"  {Color.DIM}Tip: Identify the readable sentence above — that's your key!{Color.RESET}")
+
+    input(f"\n  {Color.DIM}Press Enter to return to menu...{Color.RESET}")
+
+
+def menu_about():
+    banner()
+    separator("─", 60, Color.CYAN)
+    print(f"  {Color.BOLD}HOW CAESAR CIPHER WORKS{Color.RESET}")
+    separator("─", 60, Color.CYAN)
+    print(f"""
+  {Color.CYAN}IPO Model:{Color.RESET}
+    Input   →  Plaintext  (raw data)
+    Process →  Algorithm + Key (shift)
+    Output  →  Ciphertext (secured)
+
+  {Color.CYAN}Encryption Formula:{Color.RESET}
+    E(x) = (x + n) % 26
+
+  {Color.CYAN}Decryption Formula:{Color.RESET}
+    D(x) = (x - n) % 26
+
+  {Color.CYAN}Example  (shift = 3):{Color.RESET}
+    'A' (ASCII 65) → pos 0 → 0+3=3 → 3%26=3 → 'D'
+    'Y' (ASCII 89) → pos 24 → 24+3=27 → 27%26=1 → 'B'
+
+  {Color.CYAN}Key Python functions used:{Color.RESET}
+    ord()  — character → integer (ASCII value)
+    chr()  — integer   → character
+    %      — modulo for alphabet wrap-around
+
+  {Color.CYAN}Known Vulnerabilities:{Color.RESET}
+    • Tiny key space   : only 25 unique keys → brute-forceable
+    • Pattern leakage  : frequency distribution is preserved
+    • Not production-safe (used for learning only)
+""")
+    separator("─", 60, Color.CYAN)
+    input(f"  {Color.DIM}Press Enter to return to menu...{Color.RESET}")
+
+
+# ─────────────────────────────────────────────
+#  MAIN MENU LOOP
+# ─────────────────────────────────────────────
+
+def main():
+    options = {
+        '1': ("Encrypt Text",              menu_encrypt),
+        '2': ("Decrypt Text",              menu_decrypt),
+        '3': ("Encrypt → Decrypt Demo",    menu_both),
+        '4': ("Brute Force Analyser",      menu_brute_force),
+        '5': ("How It Works (Theory)",     menu_about),
+        '0': ("Exit",                      None),
+    }
+
+    while True:
+        banner()
+        print(f"  {Color.BOLD}MAIN MENU{Color.RESET}")
+        separator()
+        for key, (label, _) in options.items():
+            icon = Color.RED + "✖" if key == '0' else Color.GREEN + "▶"
+            print(f"  {icon}{Color.RESET}  [{Color.BOLD}{Color.CYAN}{key}{Color.RESET}]  {label}")
+        separator()
+
+        choice = input(f"\n  {Color.YELLOW}Select option: {Color.RESET}").strip()
+
+        if choice == '0':
+            banner()
+            slow_print(f"  {Color.CYAN}Shutting down CipherVault...{Color.RESET}", delay=0.04)
+            slow_print(f"  {Color.DIM}Stay curious. Stay secure.{Color.RESET}", delay=0.03)
+            print()
+            sys.exit(0)
+
+        if choice in options:
+            options[choice][1]()
+        else:
+            print(f"\n  {Color.RED}[!] Invalid option. Try again.{Color.RESET}")
+            time.sleep(1)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(f"\n\n  {Color.YELLOW}[!] Interrupted by user. Exiting.{Color.RESET}\n")
+        sys.exit(0)
